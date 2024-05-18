@@ -22,7 +22,7 @@ blueprint:
           mode: slider
     max_value:
       name: Maximum colour temperature
-      description: Hard limit for the colour temperature. Note: Check your light's state with the developer tools to find its actual range.
+      description: "Hard limit for the colour temperature. Note: Check your light's state with the developer tools to find its actual range."
       selector:
         number:
           min: 0
@@ -32,7 +32,7 @@ blueprint:
           mode: slider
     min_value:
       name: Minimum colour temperature
-      description: Hard limit for the colour temperature. Note: Check your light's state with the developer tools to find its actual range.
+      description: "Hard limit for the colour temperature. Note: Check your light's state with the developer tools to find its actual range."
       selector:
         number:
           min: 0
