@@ -1,0 +1,119 @@
+blueprint:
+  name: Day Cycle Light Colour Temperature
+  description: Makes a light's colour temperature follow the day cycle
+  domain: automation
+  input:
+    light_controller:
+      name: Light
+      description: This light's colour temperature will be synchronized with the day/night cycle.
+      selector:
+        target:
+          entity:
+            - domain: light
+    base_value:
+      name: Base colour temperature
+      description: The colour temperature at sunrise and sunset. Lower is red, higher is blue.
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 1
+          unit_of_measurement: "%"
+          mode: slider
+    max_value:
+      name: Maximum colour temperature
+      description: Hard limit for the colour temperature.
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 1
+          unit_of_measurement: "%"
+          mode: slider
+    min_value:
+      name: Minimum colour temperature
+      description: Hard limit for the colour temperature.
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 1
+          unit_of_measurement: "%"
+          mode: slider
+    noon_value:
+      name: Colour temperature at noon
+      description: The colour temperature in the middle of the day. (May be higher/lower than the maximum/minimum colour temperature.)
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 1
+          unit_of_measurement: "%"
+          mode: slider
+    midnight_value:
+      name: Colour temperature at midnight
+      description: The colour temperature in the middle of the night. (May be higher/lower than the maximum/minimum colour temperature.)
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 1
+          unit_of_measurement: "%"
+          mode: slider
+    time_offset:
+      name: Time offset
+      description: Offset from the current time. Negative values will move the curve back, i.e. delay the colour temperature change. (May be unstable.)
+      selector:
+        number:
+          min: -12
+          max: 12
+          step: 0.25
+          unit_of_measurement: "h"
+          mode: slider
+
+trigger:
+  - platform: state
+    entity_id:
+      - sensor.sun_solar_elevation
+  - platform: time_pattern
+    minutes: /20
+  - platform: homeassistant
+    event: start
+condition: []
+
+action:
+  - variables:
+      cc: !input light_controller
+      dayt: !input noon_value
+      nightt: !input midnight_value
+      sett: !input base_value
+      attday: "{{ dayt - sett }}"
+      attnight: "{{ nightt - sett }}"
+      maxt: !input max_value
+      mint: !input min_value
+      offset: !input time_offset
+      min_kelvin: "{{ state_attr(cc.entity_id, 'min_color_temp_kelvin')|int }}"
+      max_kelvin: "{{ state_attr(cc.entity_id, 'max_color_temp_kelvin')|int }}"
+      percent: >-
+        {% set sr = state_attr('sun.sun','next_rising')|as_timestamp - today_at()|as_timestamp %}
+        {% set sr = sr - [86400, 0][sr < 86400] %}
+        {% set ss = state_attr('sun.sun','next_setting')|as_timestamp - today_at()|as_timestamp %}
+        {% set ss = ss - [86400, 0][ss < 86400] %}
+        {% set n = now()|as_timestamp + offset*60*60 - today_at()|as_timestamp %}
+        {% set n = n + [0, 86400][n < sr] %}
+        {% set dl = ss - sr if ss > sr else 86400 - (sr - ss) %}
+        {% set se = ((-1, sin(pi * ((n - ss) / (dl - 86400), (n - sr) / dl)[ss > n > sr]), 1)|sort)[1] %}
+        {{ ((mint, [sett - se * attnight, sett + se * attday][se > 0], maxt)|sort)[1] }}
+      value: >-
+        {{ min_kelvin + (max_kelvin - min_kelvin) * percent / 100 }}
+  - if:
+      - condition: template
+        value_template: >-
+          {{ (value - state_attr(cc.entity_id, 'color_temp_kelvin')|float)|abs > 1 }}
+    then:
+      - service: light.turn_on
+        metadata: {}
+        data:
+          kelvin: "{{value|int}}"
+        target: !input light_controller
+mode: single

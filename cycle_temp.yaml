@@ -1,0 +1,116 @@
+blueprint:
+  name: Day Cycle Temperature
+  description: Makes a climate controller's temperature follow the day cycle
+  domain: automation
+  input:
+    climate_controller:
+      name: Climate Controller
+      description: This climate controller's temperature will be synchronized with the day/night cycle.
+      selector:
+        target:
+          entity:
+            - domain: climate
+    base_temp:
+      name: Base temperature
+      description: The temperature at sunrise and sunset.
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 0.25
+          unit_of_measurement: "°C"
+          mode: slider
+    max_temp:
+      name: Maximum temperature
+      description: Hard limit for the temperature.
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 0.25
+          unit_of_measurement: "°C"
+          mode: slider
+    min_temp:
+      name: Minimum temperature
+      description: Hard limit for the temperature.
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 0.25
+          unit_of_measurement: "°C"
+          mode: slider
+    noon_temp:
+      name: Temperature at noon
+      description: The temperature in the middle of the day. (May be higher/lower than the maximum/minimum temperature.)
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 0.25
+          unit_of_measurement: "°C"
+          mode: slider
+    midnight_temp:
+      name: Temperature at midnight
+      description: The temperature in the middle of the night. (May be higher/lower than the maximum/minimum temperature.)
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 0.25
+          unit_of_measurement: "°C"
+          mode: slider
+    time_offset:
+      name: Time offset
+      description: Offset from the current time. Negative values will move the curve back, i.e. delay the temperature change. (May be unstable.)
+      selector:
+        number:
+          min: -12
+          max: 12
+          step: 0.25
+          unit_of_measurement: "h"
+          mode: slider
+
+trigger:
+  - platform: state
+    entity_id:
+      - sensor.sun_solar_elevation
+  - platform: time_pattern
+    minutes: /20
+  - platform: homeassistant
+    event: start
+condition: []
+
+action:
+  - variables:
+      cc: !input climate_controller
+      dayt: !input noon_temp
+      nightt: !input midnight_temp
+      sett: !input base_temp
+      attday: "{{ dayt - sett }}"
+      attnight: "{{ nightt - sett }}"
+      maxt: !input max_temp
+      mint: !input min_temp
+      offset: !input time_offset
+      se: >-
+        {% set sr = state_attr('sun.sun','next_rising')|as_timestamp - today_at()|as_timestamp %}
+        {% set sr = sr - [86400, 0][sr < 86400] %}
+        {% set ss = state_attr('sun.sun','next_setting')|as_timestamp - today_at()|as_timestamp %}
+        {% set ss = ss - [86400, 0][ss < 86400] %}
+        {% set n = now()|as_timestamp + offset*60*60 - today_at()|as_timestamp %}
+        {% set n = n + [0, 86400][n < sr] %}
+        {% set dl = ss - sr if ss > sr else 86400 - (sr - ss) %}
+        {{ ((-1, sin(pi * ((n - ss) / (dl - 86400), (n - sr) / dl)[ss > n > sr]), 1)|sort)[1] }}
+      temp: >-
+        {{ ((mint, [sett - se * attnight, sett + se * attday][se > 0], maxt)|sort)[1]  }}
+  - if:
+      - condition: template
+        value_template: >-
+          {{ (temp - state_attr(cc.entity_id, 'temperature')|float)|abs > 0.1 }}
+    then:
+      - service: climate.set_temperature
+        metadata: {}
+        data:
+          temperature: "{{temp}}"
+        target: !input climate_controller
+mode: single
