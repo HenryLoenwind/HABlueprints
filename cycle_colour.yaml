@@ -109,7 +109,7 @@ action:
   - if:
       - condition: template
         value_template: >-
-          {{ (value - state_attr(cc.entity_id, 'color_temp_kelvin')|float)|abs > 1 }}
+          {{ (value - state_attr(cc.entity_id, 'color_temp_kelvin')|int(0))|abs > 1 }}
     then:
       - service: light.turn_on
         metadata: {}

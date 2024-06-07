@@ -101,7 +101,7 @@ action:
   - if:
       - condition: template
         value_template: >-
-          {{ (value - state_attr(cc.entity_id, 'brightness')|float)|abs > 1 }}
+          {{ (value - state_attr(cc.entity_id, 'brightness')|float(0))|abs >= (100.0 / 255.0) }}
     then:
       - service: light.turn_on
         metadata: {}

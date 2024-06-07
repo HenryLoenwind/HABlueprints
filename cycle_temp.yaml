@@ -101,7 +101,7 @@ action:
   - if:
       - condition: template
         value_template: >-
-          {{ (temp - state_attr(cc.entity_id, 'temperature')|float)|abs > 0.1 }}
+          {{ (temp - state_attr(cc.entity_id, 'temperature')|float(0))|abs > 0.1 }}
     then:
       - service: climate.set_temperature
         metadata: {}
