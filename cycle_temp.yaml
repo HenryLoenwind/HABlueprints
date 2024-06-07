@@ -72,13 +72,8 @@ blueprint:
           mode: slider
 
 trigger:
-  - platform: state
-    entity_id:
-      - sensor.sun_solar_elevation
   - platform: time_pattern
-    minutes: /20
-  - platform: homeassistant
-    event: start
+    minutes: /1
 condition: []
 
 action:
