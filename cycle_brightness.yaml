@@ -45,8 +45,8 @@ blueprint:
       description: The brightness in the middle of the day. (May be higher/lower than the maximum/minimum brightness.)
       selector:
         number:
-          min: 0
-          max: 100
+          min: -100
+          max: 200
           step: 1
           unit_of_measurement: "%"
           mode: slider
@@ -55,8 +55,8 @@ blueprint:
       description: The brightness in the middle of the night. (May be higher/lower than the maximum/minimum brightness.)
       selector:
         number:
-          min: 0
-          max: 100
+          min: -100
+          max: 200
           step: 1
           unit_of_measurement: "%"
           mode: slider
